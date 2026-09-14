@@ -105,6 +105,25 @@ def _sanitised_console(payload: BugReportCreate) -> list[dict[str, Any]]:
     ]
 
 
+def _error_signature(
+    failing: dict[str, Any],
+    console: list[dict[str, Any]],
+    observed: Optional[str],
+) -> Optional[str]:
+    """Ce qui a cassé, dans l'ordre où c'est le plus sûr de le savoir.
+
+    Seules les erreurs de console comptent. Un avertissement (celui de
+    Recharts sur la taille d'un graphique s'émet sur toutes les pages)
+    donnait la même empreinte à des signalements sans rapport.
+    """
+    errors = [entry for entry in console if (entry.get("level") or "").lower() == "error"]
+    return (
+        failing.get("error")
+        or (errors[-1]["message"] if errors else None)
+        or observed
+    )
+
+
 def _failing_call(calls: list[dict[str, Any]]) -> dict[str, Any]:
     """L'appel qui a échoué, à défaut le dernier.
 
@@ -135,11 +154,7 @@ async def create_bug_report(
 
     failing = _failing_call(calls)
     route = context.get("route") or failing.get("path")
-    error_signature = (
-        failing.get("error")
-        or (console[-1]["message"] if console else None)
-        or payload.observed
-    )
+    error_signature = _error_signature(failing, console, payload.observed)
     fingerprint = compute_fingerprint(
         route=route,
         status=failing.get("status"),
