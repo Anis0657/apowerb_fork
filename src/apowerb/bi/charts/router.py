@@ -22,6 +22,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
+from apowerb.bi.charts.core import ChartOrigin
 from apowerb.bi.charts.schemas import (
     ChartCreateRequest,
     ChartListResponse,
@@ -120,7 +121,7 @@ async def create_chart(
     svc: ServiceDep,
 ) -> ChartResponse:
     try:
-        chart = await svc.create(body, created_by=user.email)
+        chart = await svc.create(body, created_by=user.email, origin=ChartOrigin.BI)
     except ChartConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     return ChartResponse.from_domain(chart)
@@ -212,6 +213,7 @@ async def create_kpi(
         project_id=project_id,
         refresh_interval=refresh_interval,
         created_by=created_by,
+        origin=ChartOrigin.BI,
     )
     return ChartResponse.from_domain(chart)
 
@@ -244,6 +246,7 @@ async def create_timeseries(
         organization_id=organization_id,
         project_id=project_id,
         created_by=created_by,
+        origin=ChartOrigin.BI,
     )
     return ChartResponse.from_domain(chart)
 

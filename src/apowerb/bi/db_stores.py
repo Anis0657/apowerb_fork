@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 from sqlalchemy import select, func, ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from apowerb.bi.charts.core import Chart
+from apowerb.bi.charts.core import Chart, ChartOrigin, effective_origin
 from apowerb.bi.dashboards.core import Dashboard
 from apowerb.bi.data._bi_storage import delete_file as delete_s3_file
 from apowerb.models import BIItemStatus, BusinessIntelligence
@@ -130,6 +130,15 @@ class DatabaseChartStore(_BaseBIStore):
 
         # Always save full config to DB
         config_data = json.loads(chart.model_dump_json())
+        if not config_data.get("origin"):
+            # A chart stored before origins existed is classified once, from
+            # what it was before this write, so a rename cannot flip it.
+            before = (row.config or {}) if row else {}
+            config_data["origin"] = effective_origin(
+                before.get("name", chart.name),
+                before.get("title", chart.title),
+                before.get("origin"),
+            ).value
 
         if row:
             # Prevent resurrecting a soft-deleted row
@@ -163,6 +172,17 @@ class DatabaseChartStore(_BaseBIStore):
 
     async def delete(self, chart_id: str) -> bool:
         return await self._soft_delete(chart_id)
+
+    async def count_by_origin(self) -> dict[ChartOrigin, int]:
+        """Charts made on the BI screen vs. inside a conversation."""
+        q = select(BusinessIntelligence.name, BusinessIntelligence.config).where(
+            *self._base_filters(),
+        )
+        counts = {ChartOrigin.BI: 0, ChartOrigin.CHAT: 0}
+        for name, config in (await self._db.execute(q)).all():
+            config = config or {}
+            counts[effective_origin(name, config.get("title"), config.get("origin"))] += 1
+        return counts
 
 
 # ---------------------------------------------------------------------------

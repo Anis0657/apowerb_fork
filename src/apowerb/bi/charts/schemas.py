@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from apowerb.bi.charts.core import (
     AggregationFunc,
     Chart,
+    ChartOrigin,
     ChartType,
     DataSource,
     Dimensions,
@@ -24,6 +25,7 @@ from apowerb.bi.charts.core import (
     SortConfig,
     SourceType,
     Theme,
+    effective_origin,
 )
 
 
@@ -180,10 +182,13 @@ class ChartResponse(BaseModel):
     created_by: str | None
     organization_id: str
     project_id: str = "thaink2"
+    origin: ChartOrigin
 
     @classmethod
     def from_domain(cls, chart: Chart) -> "ChartResponse":
-        return cls(**chart.model_dump())
+        data = chart.model_dump()
+        data["origin"] = effective_origin(chart.name, chart.title, chart.origin)
+        return cls(**data)
 
     model_config = {"from_attributes": True}
 

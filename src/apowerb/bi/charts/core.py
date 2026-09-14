@@ -20,6 +20,24 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 # ---------------------------------------------------------------------------
 
 
+class ChartOrigin(str, Enum):
+    """Where a chart was created. Fixed at creation, never changed after."""
+
+    BI = "bi"  # the BI screen (REST API)
+    CHAT = "chat"  # an agent tool, inside a conversation
+
+
+def effective_origin(name: str | None, title: str | None, origin: str | None) -> ChartOrigin:
+    """The recorded origin, or the rule for charts stored before it existed.
+
+    The BI screen's wizard sends ``name == title``; the agent gives a technical
+    name (``monthly_revenue_bar``) distinct from the human title.
+    """
+    if origin:
+        return ChartOrigin(origin)
+    return ChartOrigin.BI if (name or "") == (title or "") else ChartOrigin.CHAT
+
+
 class ChartType(str, Enum):
     BAR = "bar"
     LINE = "line"
@@ -187,6 +205,7 @@ class Chart(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     created_by: str | None = None
+    origin: ChartOrigin | None = None
 
     # ------------------------------------------------------------------
     # Factories
@@ -210,6 +229,7 @@ class Chart(BaseModel):
         organization_id: str,
         project_id: str = "thaink2",
         config: dict[str, Any] | None = None,
+        origin: ChartOrigin | None = None,
     ) -> "Chart":
         return cls(
             name=name,
@@ -226,6 +246,7 @@ class Chart(BaseModel):
             organization_id=organization_id,
             project_id=project_id,
             config=config or {},
+            origin=origin,
         )
 
     @classmethod
