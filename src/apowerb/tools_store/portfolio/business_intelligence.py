@@ -184,7 +184,7 @@ async def _async_create_chart(
     config: str,
     owner_email: str,
 ) -> dict:
-    from apowerb.bi.charts.core import ChartType, DataSource, AggregationFunc
+    from apowerb.bi.charts.core import ChartOrigin, ChartType, DataSource, AggregationFunc
     from apowerb.bi.charts.schemas import ChartCreateRequest, DataSourceSchema
     from apowerb.bi.charts.service import ChartConflictError, ChartService
     from apowerb.bi.db_stores import DatabaseChartStore
@@ -311,7 +311,7 @@ async def _async_create_chart(
                 project_id=project_id,
                 config=config_dict,
             )
-            return await svc.create(req, created_by=owner_email)
+            return await svc.create(req, created_by=owner_email, origin=ChartOrigin.CHAT)
 
     try:
         chart = await _create_with_name(name)

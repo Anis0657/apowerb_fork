@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Protocol
-from apowerb.bi.charts.core import Chart, ChartType, Filter, Theme
+from apowerb.bi.charts.core import Chart, ChartOrigin, ChartType, Filter, Theme
 from apowerb.bi.charts.schemas import (
     ChartCreateRequest,
     ChartUpdateRequest,
@@ -148,6 +148,7 @@ class ChartService:
         req: ChartCreateRequest,
         *,
         created_by: str | None = None,
+        origin: ChartOrigin | None = None,
     ) -> Chart:
         """Validate and persist a new chart."""
         chart = Chart.create(
@@ -164,6 +165,7 @@ class ChartService:
             filters=[f.to_domain() for f in req.filters],
             permissions=req.permissions,
             created_by=created_by,
+            origin=origin,
             config=req.config,
         )
 
@@ -245,12 +247,14 @@ class ChartService:
         project_id: str = "thaink2",
         refresh_interval: int = 30,
         created_by: str | None = None,
+        origin: ChartOrigin | None = None,
     ) -> Chart:
         chart = Chart.kpi(
             title=title,
             query=query,
             refresh_interval=refresh_interval,
             created_by=created_by,
+            origin=origin,
             name=name,
             organization_id=organization_id,
             project_id=project_id,
@@ -271,6 +275,7 @@ class ChartService:
         chart_type: ChartType = ChartType.LINE,
         refresh_interval: int = 60,
         created_by: str | None = None,
+        origin: ChartOrigin | None = None,
     ) -> Chart:
         chart = Chart.timeseries(
             name=name,
@@ -282,6 +287,7 @@ class ChartService:
             project_id=project_id,
             refresh_interval=refresh_interval,
             created_by=created_by,
+            origin=origin,
         )
 
         saved_chart = await self._store.save(chart)
