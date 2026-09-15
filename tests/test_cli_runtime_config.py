@@ -13,15 +13,16 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from apowerb.cli import runtime_config
 from apowerb.cli.main import app
-from apowerb.configs.settings import RUNTIME_REQUIRED_FIELDS, get_settings
+from apowerb.configs.settings import RUNTIME_REQUIRED_FIELDS, Settings
 
 _CONFIGURED = {
-    "DB_HOST": "localhost",
-    "DB_NAME": "apowerb",
-    "DB_USER": "apowerb",
-    "DB_PASSWORD": "secret",
-    "ENCRYPT_KEY": "0" * 43 + "=",
+    "db_host": "localhost",
+    "db_name": "apowerb",
+    "db_user": "apowerb",
+    "db_password": "secret",
+    "encrypt_key": "0" * 43 + "=",
 }
 
 # Each command that reaches the database, with what it would call to get there.
@@ -39,22 +40,19 @@ _DATABASE_COMMANDS = [
 ]
 
 
+# The settings are handed to the check rather than rebuilt from the environment:
+# clearing the ``get_settings`` cache would replace the instance other modules
+# captured at import (``apowerb.storage.s3.settings``) and break later tests.
 @pytest.fixture
-def unconfigured(tmp_path, monkeypatch):
-    # No .env in the working directory, no variable in the environment.
-    monkeypatch.chdir(tmp_path)
-    for field in RUNTIME_REQUIRED_FIELDS:
-        monkeypatch.delenv(field.upper(), raising=False)
-    get_settings.cache_clear()
-    yield
-    get_settings.cache_clear()
+def unconfigured(monkeypatch):
+    settings = Settings(**{field: "" for field in RUNTIME_REQUIRED_FIELDS})
+    monkeypatch.setattr(runtime_config, "get_settings", lambda: settings)
 
 
 @pytest.fixture
-def configured(unconfigured, monkeypatch):
-    for name, value in _CONFIGURED.items():
-        monkeypatch.setenv(name, value)
-    get_settings.cache_clear()
+def configured(monkeypatch):
+    settings = Settings(**_CONFIGURED)
+    monkeypatch.setattr(runtime_config, "get_settings", lambda: settings)
 
 
 def _invoke_with_database_mocked(args, targets, **mock_kwargs):
