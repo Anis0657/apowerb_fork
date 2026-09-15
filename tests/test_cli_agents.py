@@ -17,6 +17,24 @@ from typer.testing import CliRunner
 
 from apowerb.cli.agents import app
 from apowerb.core.agent_main import fetch_agents
+from apowerb.configs.settings import get_settings
+
+
+@pytest.fixture(autouse=True)
+def configured(monkeypatch):
+    """These tests mock the database; the configuration check (roadmap#44) still
+    needs the variables the server requires."""
+    for name, value in {
+        "DB_HOST": "localhost",
+        "DB_NAME": "apowerb",
+        "DB_USER": "apowerb",
+        "DB_PASSWORD": "secret",
+        "ENCRYPT_KEY": "0" * 43 + "=",
+    }.items():
+        monkeypatch.setenv(name, value)
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 # ---------------------------------------------------------------------------
