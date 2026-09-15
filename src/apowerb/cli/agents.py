@@ -9,6 +9,7 @@ from apowerb.core.agent_main import (
 )
 from apowerb.schema.agent_schema import AgentCreateSchema
 from apowerb.core.agent_helpers.llm_model_builder import validate_agent_model
+from apowerb.cli.runtime_config import require_runtime_config
 import json
 
 app = typer.Typer()
@@ -39,6 +40,7 @@ def list_agents(
     use this on the VM to inspect what is deployed across tenants.
     Pass ``--owner user@example.com`` to scope to a single owner.
     """
+    require_runtime_config()
     # Touch the store once so the table is created if the CLI is the
     # very first thing run against a fresh database.
     get_agent_store()
@@ -81,6 +83,7 @@ def create_agent(
     ),
 ):
     """Create a new agent."""
+    require_runtime_config()
     tool_list = []
     if tools:
         tool_list = [tool.strip() for tool in tools.split(",")]
@@ -112,6 +115,7 @@ def get_agent_info(
     agent_id: str = typer.Argument(..., help="Agent ID to retrieve"),
 ):
     """Get information about a specific agent."""
+    require_runtime_config()
     agent = get_agent(int(agent_id.replace("agent", "")))
 
     if not agent:
@@ -131,6 +135,7 @@ def delete_agent_cmd(
     ),
 ):
     """Delete an agent."""
+    require_runtime_config()
     if not force:
         confirm = typer.confirm(f"Are you sure you want to delete agent '{agent_id}'?")
         if not confirm:
@@ -151,6 +156,7 @@ def export_agents_cmd(
     s3_prefix: str = typer.Option("seeds/", "--prefix", "-p", help="S3 prefix (default: seeds/)"),
 ):
     """Export all agents for a user to YAML seed files on S3."""
+    require_runtime_config()
     from apowerb.core.agent_seeds import export_agents
 
     try:
@@ -172,6 +178,7 @@ def import_agents_cmd(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview without creating anything"),
 ):
     """Import agents from YAML seed files stored on S3."""
+    require_runtime_config()
     from apowerb.core.agent_seeds import import_agents
 
     try:

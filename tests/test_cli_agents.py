@@ -19,6 +19,13 @@ from apowerb.cli.agents import app
 from apowerb.core.agent_main import fetch_agents
 
 
+@pytest.fixture(autouse=True)
+def configured(monkeypatch):
+    """These tests mock the database; skip the configuration check (roadmap#44),
+    covered in test_cli_runtime_config.py."""
+    monkeypatch.setattr("apowerb.cli.agents.require_runtime_config", lambda: None)
+
+
 # ---------------------------------------------------------------------------
 # fetch_agents signature contract
 # ---------------------------------------------------------------------------

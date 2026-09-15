@@ -3,6 +3,7 @@ from apowerb.agent_store.agent_manager import AgentStore
 from apowerb.core.agent_main import get_agent
 import threading
 from apowerb.configs.settings import get_settings
+from apowerb.cli.runtime_config import require_runtime_config
 
 app = typer.Typer()
 
@@ -24,6 +25,7 @@ def start_agent(
     agent_id: str = typer.Argument(..., help="Agent ID to start"),
 ):
     """Start running an agent."""
+    require_runtime_config()
     if agent_id in running_agents:
         typer.echo(f"Agent '{agent_id}' is already running.", err=True)
         raise typer.Exit(1)
