@@ -4,7 +4,7 @@ DASHBOARD_TEMPLATES = [
     {
         "template_id": "dashboard_agent",
         "name": "dashboard_builder",
-        "display_name": "Dashboard Builder Agent",
+        "display_name": "BI Agent",
         "description": "BI dashboard builder agent that creates interactive dashboards with charts, KPIs, and tables. "
                        "Connects to databases to query data, builds visualizations, and assembles them into "
                        "publishable dashboards. Supports scheduled refresh for live monitoring.",

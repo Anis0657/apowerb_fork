@@ -749,6 +749,12 @@ class Settings(BaseSettings):
     # ============================================================
     org_domain_slugs: dict[str, str] = {}
 
+    # Template ids to keep out of the Create Agent picker, comma-separated
+    # (SUPERAGENT_HIDDEN_TEMPLATES=dashboard_agent,image_creator). Hiding is a
+    # picker concern only: agents already created from a hidden template keep
+    # resolving it. Empty by default -- every template is offered.
+    superagent_hidden_templates: str = ""
+
     # ============================================================
     # Répertoires de travail. Historiquement codés en relatif
     # ("agents_pool", "./uploads/…"), donc résolus contre le CWD :

@@ -95,6 +95,17 @@ def _is_visible_to(template: dict, org_slugs: Iterable[str]) -> bool:
     return any(slug in visibility for slug in org_slugs)
 
 
+def _hidden_template_ids() -> set[str]:
+    """Template ids the deployment keeps out of the picker.
+
+    Read from ``settings.superagent_hidden_templates`` (comma-separated).
+    Only the picker list honours it: resolving a template by id, which an
+    agent created from it relies on, never does.
+    """
+    raw = get_settings().superagent_hidden_templates or ""
+    return {part.strip() for part in raw.split(",") if part.strip()}
+
+
 def list_superagent_templates(
     user: "user_schemas.User | None" = None,
 ) -> list[dict]:
@@ -107,7 +118,12 @@ def list_superagent_templates(
     if user is None:
         return list(_build_templates())
     org_slugs = _user_org_slugs(user)
-    return [t for t in _build_templates() if _is_visible_to(t, org_slugs)]
+    hidden = _hidden_template_ids()
+    return [
+        t
+        for t in _build_templates()
+        if _is_visible_to(t, org_slugs) and t["template_id"] not in hidden
+    ]
 
 
 def get_superagent_template(
