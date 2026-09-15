@@ -329,14 +329,21 @@ async def run_agent_sse(
     try:
         NewMessage(**request.new_message)
 
+        from apowerb.core.sse_heartbeat import with_sse_heartbeat
+
         return StreamingResponse(
-            stream_adk_agent(
-                agent_name=folder_name,
-                user_id=request.user_id,
-                session_id=request.session_id,
-                new_message=request.new_message,
-                streaming=request.streaming,
-                token=credentials.credentials if credentials else None,
+            # Un agent peut rester muet plus d'une minute : sans signal, chaque
+            # maillon (nginx, relais Next) coupe sur son délai de silence et
+            # l'exécution est annulée.
+            with_sse_heartbeat(
+                stream_adk_agent(
+                    agent_name=folder_name,
+                    user_id=request.user_id,
+                    session_id=request.session_id,
+                    new_message=request.new_message,
+                    streaming=request.streaming,
+                    token=credentials.credentials if credentials else None,
+                )
             ),
             media_type="text/event-stream",
             headers={
