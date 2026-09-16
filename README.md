@@ -10,8 +10,6 @@ commercial bricks and are **absent here**. Where the core holds a hook for one, 
 documented as such. A `404` on those routes means "not in this edition", not "object not
 found".
 
-Hello
-
 The **administration panel is part of this edition**: users, groups, permissions, MFA
 enforcement. Only the management of *organisations* is sold separately — deciding which
 tenant a person belongs to governs other people's reach, rather than serving whoever runs
@@ -19,11 +17,38 @@ the install.
 
 Full documentation: [docs.apowerb.com](https://docs.apowerb.com).
 
+---
+
+## Quick start
+
+Three commands, a database included, and **nothing to fill in**:
+
+```bash
+git clone https://github.com/apowerb/apowerb-hosting.git && cd apowerb-hosting
+cp .env.example .env && ./scripts/generate-secrets.sh
+docker compose -f docker-compose/docker-compose.yml --env-file .env up -d
+```
+
+The interface is on [http://localhost:3000](http://localhost:3000), the API on
+port `8000`. `generate-secrets.sh` writes the random values the stack needs, and
+Postgres runs inside the stack — there is no external database to provide.
+
+Agents need a model to answer, and that is the one thing this cannot invent for
+you. Add your own key in the interface, or declare a shared one in `.env`
+(`DEFAULT_LLM_MODEL` and `DEFAULT_LLM_API_KEY`). Until then everything else
+works and the model simply does not appear in the list.
+
+[`apowerb-hosting`](https://github.com/apowerb/apowerb-hosting) holds this
+stack, plus Kubernetes manifests, a Helm chart and a Traefik overlay.
+[Installation from source](#installation-from-source) below is the other path:
+it wants your own PostgreSQL.
+
 ## Table of Contents
 
+- [Quick start](#quick-start)
 - [Features](#features)
 - [Prerequisites](#prerequisites)
-- [Installation](#installation)
+- [Installation from source](#installation-from-source)
 - [Configuration](#configuration)
 - [Running](#running)
 - [CLI](#cli)
@@ -74,13 +99,16 @@ Full documentation: [docs.apowerb.com](https://docs.apowerb.com).
 
 ## Prerequisites
 
+The [quick start](#quick-start) above needs **Docker and Docker Compose**, and
+nothing else. What follows is for running the core from its sources:
+
 - Python 3.13+
 - PostgreSQL
 - UV (package manager)
 
 ---
 
-## Installation
+## Installation from source
 
 1. **Install UV and create virtual environment**:
 
@@ -118,15 +146,27 @@ cp .env.example .env
 
 ### Required Variables
 
+**On the [quick start](#quick-start) path, none of these are yours to fill in**
+— the Compose stack wires the database and generates the key. This section is
+for an installation that brings its own PostgreSQL.
+
+Five settings, and the server refuses to boot without them
+(`RUNTIME_REQUIRED_FIELDS` in `configs/settings.py`):
+
 | Variable | Description |
 |----------|-------------|
 | `DB_HOST` | PostgreSQL database host |
-| `DB_PORT` | Port (default: `5432`) |
 | `DB_NAME` | Database name |
 | `DB_USER` | Database username |
 | `DB_PASSWORD` | Database password |
-| `DB_SCHEMA` | Schema (default: `public`) |
-| `ENCRYPT_KEY` | Encryption key for secrets and JWT signing |
+| `ENCRYPT_KEY` | Encryption key for secrets and JWT signing — a url-safe base64 32-byte key, `Fernet.generate_key()` |
+
+Two more are read from the same block and are **not** required, each having a
+default: `DB_PORT` (`5432`) and `DB_SCHEMA` (`public`).
+
+`TEST_TOKEN` is **not** required either, and has not been since 0.2.x. The only
+middleware that reads it is mounted nowhere, so demanding it forced every
+deployment to invent one. An `.env` that still carries it is harmless.
 
 ### Optional Variables
 
