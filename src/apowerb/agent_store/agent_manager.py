@@ -42,6 +42,7 @@ class AgentStore(BaseModel):
         engine: Any - The SQLAlchemy engine instance.
         metadata: Any - The SQLAlchemy metadata instance.
         agent_table: Any - The SQLAlchemy table instance for agents.
+        revision_table: Any - The SQLAlchemy table instance for agent revisions.
     """
 
     agent_config: AgentStoreConfig = AgentStoreConfig()
@@ -56,13 +57,19 @@ class AgentStore(BaseModel):
     engine: Any = None
     metadata: Any = None
     agent_table: Any = None
+    revision_table: Any = None
 
     def __init__(self, **data: Any):
         super().__init__(**data)
         self.engine = create_sync_engine(
             f"{self.db_type}://{self.db_user}:{self.db_password}@{self.db_url}"
         )
-        self.metadata = MetaData(schema=self.db_schema)
+        # ``or None`` : un DB_SCHEMA vide doit signifier "pas de schema", pas
+        # un schema nomme "". La difference ne se voit qu au moment ou une
+        # table existe deja : ``create_all(checkfirst=True)`` cherche alors
+        # dans un schema introuvable, conclut que la table manque, et echoue
+        # sur un CREATE en doublon.
+        self.metadata = MetaData(schema=self.db_schema or None)
         self.agent_table = Table(
             self.table_name,
             self.metadata,
@@ -105,14 +112,47 @@ class AgentStore(BaseModel):
                 name="unique_agent_name_per_org_proj",
             ),
         )
+        # Historique des définitions écrasées.
+        #
+        # ``agents`` ne garde qu'une ligne courante : un UPDATE détruisait
+        # définitivement l'instruction, le modèle, les outils et les
+        # sous-agents précédents. Chaque écrasement copie ici la ligne
+        # **telle qu'elle est stockée** — donc avec ses secrets encore
+        # chiffrés, jamais la version déchiffrée par ``get_agent``.
+        self.revision_table = Table(
+            "agent_revisions",
+            self.metadata,
+            Column("revision_id", Integer, primary_key=True, autoincrement=True),
+            Column("agent_id", Integer, nullable=False, index=True),
+            Column("agent_name", String),
+            Column("organization_id", String),
+            Column("project_id", String),
+            # Le propriétaire au moment de l'archivage : c'est lui qui filtre
+            # les lectures et les restaurations, comme sur ``agents``.
+            Column("owner_id", String, nullable=False, index=True),
+            Column("revised_by", String),
+            Column("revised_at", String),
+            # "update" | "resync" | "restore" — ce qui a provoqué l'écrasement.
+            Column("reason", String),
+            Column("payload", String, nullable=False),
+        )
 
     def create_table(self):
-        """Create the agent metadata table in the database."""
-        if not inspect(self.engine).has_table(self.table_name):
-            self.metadata.create_all(self.engine)
-            logger.info(f"Agent store table '{self.table_name}' created successfully.")
-        else:
+        """Create the agent store tables that are missing.
+
+        ``create_all`` est appelé **inconditionnellement** (il est idempotent :
+        ``checkfirst=True`` par défaut). La version précédente ne l'appelait que
+        si la table ``agents`` manquait — or toute base déjà en service la
+        possède, donc une table ajoutée ensuite à la même ``MetaData`` n'y
+        aurait jamais été créée. Le défaut ne se voit ni en test ni sur un
+        conteneur neuf : seulement en production, là où il coûte le plus cher.
+        """
+        existed = inspect(self.engine).has_table(self.table_name)
+        self.metadata.create_all(self.engine)
+        if existed:
             logger.info(f"Agent store table '{self.table_name}' already exists.")
+        else:
+            logger.info(f"Agent store table '{self.table_name}' created successfully.")
         self.ensure_columns()
 
     def ensure_columns(self):
@@ -122,7 +162,7 @@ class AgentStore(BaseModel):
         inspector = sa_inspect(self.engine)
         existing = [
             c["name"]
-            for c in inspector.get_columns(self.table_name, schema=self.db_schema)
+            for c in inspector.get_columns(self.table_name, schema=self.db_schema or None)
         ]
         new_cols = {
             "output_key": "VARCHAR",
